@@ -1,5 +1,7 @@
 from typing import List
 import math
+import random
+
 from .errors import InvalidMoveError, AlreadyPlayedError
 from .constants import EMPTY_SYMBOL
 
@@ -122,12 +124,17 @@ class Board:
         return False
 
 
-    def get_empty_squares(self):
+    def get_empty_squares(self, shuffle=False):
         squares = []
 
         for idx, value in enumerate(self.board):
             if value == self.none:
                 squares.append(self.denormalize(idx))
+
+
+        if shuffle:
+            random.shuffle(squares)
+            
         return squares
 
     

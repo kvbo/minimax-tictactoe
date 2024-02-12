@@ -1,8 +1,33 @@
 from .constants import EMPTY_SYMBOL, DRAW_SCORE, WIN_SCORE
 from .board import Board
 from .errors import InvalidMoveError, InvalidInputError, AlreadyPlayedError
+from .controllers import HumanController, AIController
 from random import randint
 import os
+
+
+def default_update_fn(game):
+	if game.clear_console:
+		os.system('cls' if os.name == 'nt' else 'clear')
+	
+	print('*' * 30)	
+	for key, player in game.players.items():
+		print(str(player['controller']).ljust(8," "), '->', player['mark'], ' | ', 'score: ', player['score'])
+
+	print('Moves played: ', game.steps)
+	print('*' * 30)	
+
+	game.board.print()
+	for i in game.messages:
+
+		match i['type']:
+			case 'error':
+				color = "Error: "
+			case _ :
+				color = ''
+
+		print(f"{color} {i['message']}")
+	game.messages.clear()
 
 
 class Game:
@@ -11,6 +36,7 @@ class Game:
 		self.messages = []
 		self.turn = randint(0, 1)
 		self.clear_console = kwargs.get('clear_console', False)
+		self.update_fn = None
 
 
 	def setup(self):
@@ -66,8 +92,10 @@ class Game:
 		return self.players[str(self.next(commit=False))]
 
 
-	def loop(self):
+	def loop(self, update_fn=default_update_fn):
+		self.update_fn=update_fn
 		self.setup()
+
 		self.current_player["controller"].play()
 
 		self.print()
@@ -83,28 +111,7 @@ class Game:
 
 
 	def print(self):
-		if self.clear_console:
-			os.system('cls' if os.name == 'nt' else 'clear')
-		
-		print('*' * 30)	
-		for key, player in self.players.items():
-			print(str(player['controller']).ljust(8," "), '->', player['mark'], ' | ', 'score: ', player['score'])
-
-		print('Moves played: ', self.steps)
-		print('*' * 30)	
-
-		self.board.print()
-		for i in self.messages:
-
-			match i['type']:
-				case 'error':
-					color = "\U0001F34E"
-				case _ :
-					color = ''
-
-			print(f"{color} {i['message']}")
-
-		self.messages.clear()
+		self.update_fn(game=self)
 
 
 	def release(self):
@@ -123,21 +130,22 @@ class Game:
 			mark = marks[player_count]
 			player_number = player_count
 
-			match controller.__name__:
-				case 'HumanController':
-					add = True
-					human_count += 1
-					player_count += 1
-					c = controller(game=self, name=f"Player {human_count}", **kwargs)
+			
+			if issubclass(controller, HumanController):
+				add = True
+				human_count += 1
+				player_count += 1
+				c = controller(game=self, name=f"Player {human_count}", **kwargs)
 
-				case 'AIController': 
-					add = True
-					c = controller(game=self, name=f"AI Bot", **kwargs)
-					player_count += 1
-					# mark = '\U0001f916'
+			elif issubclass(controller, AIController): 
+				add = True
+				c = controller(game=self, name=f"AI Bot", **kwargs)
+				player_count += 1
+				# mark = '\U0001f916'
 
-				case _:
-					raise "Unknown type of controller for player"
+
+			else:
+				...
 
 
 			if add and player_count <= 2:
@@ -146,4 +154,6 @@ class Game:
 					"controller": c,
 					"mark": mark
 				}
+
+
 
